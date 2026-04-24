@@ -1,0 +1,106 @@
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Thumbnail quality presets
+    const THUMBNAIL_QUALITIES = <%- JSON.stringify(qualities) %>;
+
+    function showToast(message, isError = false) {
+        const toast = document.getElementById('toastMsg');
+        const toastText = document.getElementById('toastText');
+        const toastIcon = document.getElementById('toastIcon');
+        
+        toastText.textContent = message;
+        if (isError) {
+            toastIcon.className = 'fas fa-exclamation-triangle me-2';
+            toast.style.borderLeftColor = '#dc3545';
+        } else {
+            toastIcon.className = 'fas fa-check-circle me-2';
+            toast.style.borderLeftColor = '#28a745';
+        }
+        
+        toast.style.display = 'flex';
+        toast.style.alignItems = 'center';
+        
+        setTimeout(() => {
+            toast.style.display = 'none';
+        }, 3000);
+    }
+
+    async function downloadImage(url, filename) {
+        try {
+            showToast('Downloading...');
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Download failed');
+            
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+            
+            showToast(`✓ ${filename} downloaded successfully!`);
+        } catch (err) {
+            console.error(err);
+            showToast('❌ Download failed. Please try again.', true);
+        }
+    }
+
+    function openPreview(imgUrl, qualityName) {
+        const modalImg = document.getElementById('modalImagePreview');
+        const modalTitle = document.getElementById('previewModalLabel');
+        const downloadBtn = document.getElementById('modalDownloadBtn');
+        
+        modalImg.src = imgUrl;
+        modalTitle.textContent = `Preview: ${qualityName}`;
+        
+        downloadBtn.onclick = () => {
+            const filename = `youtube_thumb_${qualityName.replace(/\s/g, '_')}.jpg`;
+            downloadImage(imgUrl, filename);
+        };
+        
+        const previewModal = new bootstrap.Modal(document.getElementById('imagePreviewModal'));
+        previewModal.show();
+    }
+
+    function showLoading() {
+        document.getElementById('loadingOverlay').style.display = 'flex';
+    }
+
+    function hideLoading() {
+        document.getElementById('loadingOverlay').style.display = 'none';
+    }
+
+    // Form submission handler
+    document.addEventListener('DOMContentLoaded', () => {
+        const form = document.getElementById('thumbnailForm');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                const urlInput = document.getElementById('videoUrl');
+                if (!urlInput.value.trim()) {
+                    e.preventDefault();
+                    showToast('Please enter a YouTube URL', true);
+                } else {
+                    showLoading();
+                }
+            });
+        }
+        
+        // Keyboard shortcut: Ctrl/Cmd + Enter
+        const urlInput = document.getElementById('videoUrl');
+        if (urlInput) {
+            urlInput.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    if (urlInput.value.trim()) {
+                        document.getElementById('thumbnailForm').submit();
+                    } else {
+                        showToast('Please enter a YouTube URL', true);
+                    }
+                }
+            });
+        }
+    });
+</script>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include('../partials/head') %>
+</head>
+<body>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="yt-spinner"></div>
+    <h5 class="mt-4 fw-bold">⚡ Grabbing Thumbnails...</h5>
+    <p class="text-secondary">fetching high-res images</p>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast-custom" id="toastMsg">
+    <i class="fas fa-check-circle me-2" id="toastIcon"></i>
+    <span id="toastText">Ready</span>
+</div>
+
+<!-- Header -->
+<%- include('../partials/header') %>
+
+<main class="container" style="flex:1;">
+    <div class="hero-section">
+        <h1 class="hero-title"><i class="fab fa-youtube me-2"></i> YouTube Thumbnail Grabber</h1>
+        <p class="hero-subtitle">
+            Extract and download high-quality thumbnails from any YouTube video in seconds. <br>
+            Supports 4K, HD, SD & more — no signup, no watermark.
+        </p>
+
+        <div class="search-card">
+            <form id="thumbnailForm" action="/get-thumbnails" method="POST">
+                <div class="input-group-custom">
+                    <i class="fab fa-youtube ms-2"></i>
+                    <input type="text" class="form-control-modern" 
+                           id="videoUrl" 
+                           name="videoUrl"
+                           placeholder="https://youtube.com/watch?v=... or youtu.be/..."
+                           autocomplete="off"
+                           value="<%= locals.videoData ? 'https://youtube.com/watch?v=' + videoData.id : '' %>">
+                    <button type="submit" class="btn-gradient" id="fetchBtn">
+                        <i class="fas fa-magic me-2"></i>Extract Now
+                    </button>
+                </div>
+                <div class="d-flex justify-content-between mt-3 small text-secondary flex-wrap gap-2">
+                    <span><i class="fas fa-check-circle text-success"></i> Supports: youtube.com/watch, youtu.be, shorts, m.youtube</span>
+                    <span><i class="fas fa-keyboard"></i> Ctrl/Cmd + Enter</span>
+                </div>
+            </form>
+        </div>
+
+        <div class="features row g-4 mb-3">
+            <div class="col-md-3 col-6">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-expand-alt"></i></div>
+                    <h6>Max 4K Quality</h6>
+                    <p class="small text-muted">1920x1080+ available</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-rocket"></i></div>
+                    <h6>Lightning Fast</h6>
+                    <p class="small text-muted">Instant generation</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-lock"></i></div>
+                    <h6>100% Private</h6>
+                    <p class="small text-muted">No logs, client-side</p>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-mobile-alt"></i></div>
+                    <h6>Fully Responsive</h6>
+                    <p class="small text-muted">Works on any screen</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <% if (error) { %>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i> <%= error %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    <% } %>
+
+    <% if (videoData) { %>
+        <div id="results">
+            <!-- Video Info -->
+            <div class="video-info-card">
+                <img src="<%= videoData.thumbnailUrl %>" alt="video preview" class="video-thumb-small" 
+                     onerror="this.src='https://placehold.co/200x120/333/red?text=Thumb'">
+                <div>
+                    <div class="video-title">
+                        <i class="fab fa-youtube me-2 text-danger"></i>
+                        <%= videoData.title.length > 80 ? videoData.title.substring(0, 80) + '...' : videoData.title %>
+                    </div>
+                    <div class="video-channel">
+                        <i class="fas fa-user-circle me-1"></i><%= videoData.author %>
+                    </div>
+                    <div class="mt-2">
+                        <span class="badge-red-bg"><i class="far fa-clock me-1"></i> Thumbnail Gallery</span>
+                    </div>
+                </div>
+                <div class="ms-auto">
+                    <i class="fas fa-image fa-2x opacity-50"></i>
+                </div>
+            </div>
+
+            <!-- Thumbnails Grid -->
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <h3 class="m-0"><i class="fas fa-th-large me-2 text-danger"></i>Available Thumbnails</h3>
+                <span class="badge bg-secondary rounded-pill px-3"><%= videoData.qualities.length %> resolutions</span>
+            </div>
+            <div class="row" id="thumbnailsGrid">
+                <% videoData.qualities.forEach(function(thumb) { %>
+                    <div class="col-lg-3 col-md-4 col-sm-6">
+                        <div class="thumbnail-card">
+                            <img src="<%= thumb.url %>" 
+                                 alt="<%= thumb.name %>" 
+                                 class="thumbnail-image" 
+                                 loading="lazy"
+                                 onclick="openPreview('<%= thumb.url %>', '<%= thumb.name %>')"
+                                 onerror="this.src='https://placehold.co/320x180/2c2c2c/bbb?text=unavailable'">
+                            <div class="thumbnail-info p-3">
+                                <div class="resolution-badge"><%= thumb.name %></div>
+                                <div class="resolution-size mt-2 small">
+                                    <i class="far fa-image"></i> <%= thumb.size %> · <%= thumb.quality %>
+                                </div>
+                                <button class="btn download-btn mt-2 w-100" 
+                                        onclick="downloadImage('<%= thumb.url %>', 'yt_thumb_<%= videoData.id %>_<%= thumb.code %>.jpg')">
+                                    <i class="fas fa-download me-2"></i>Download
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        </div>
+    <% } %>
+
+    <!-- FAQ Section -->
+    <div class="faq-card card shadow p-4">
+        <h2 class="text-center mb-3 fw-bold">YouTube Thumbnail Downloader</h2>
+        <p class="text-center text-secondary">▷ Save YT Video Thumbnails in HD, Full HD, 4K</p>
+        <p>Get free thumbnail images of any YouTube video in Full HD (1080p), HD (720p), SD, and small sizes. This tool supports publicly available YouTube videos only.</p>
+        
+        <hr>
+        
+        <h4><span class="badge bg-danger me-2">i</span> What is the use of this website?</h4>
+        <p>This tool allows users to download thumbnails from YouTube videos. These thumbnails can be used in presentations, animations, or other creative projects.</p>
+        
+        <h4><span class="badge bg-warning text-dark me-2">i</span> How to use this tool?</h4>
+        <ol>
+            <li>Copy the YouTube video URL</li>
+            <li>Paste it into the input box</li>
+            <li>Thumbnails will be generated automatically</li>
+            <li>Click the download button to save</li>
+        </ol>
+        <p class="text-secondary">On Android, images will download directly. On iPhone, you may need to long-press and save manually.</p>
+        
+        <hr>
+        
+        <h4><span class="badge bg-info text-dark me-2">i</span> Is it legal?</h4>
+        <p>You can download thumbnails for personal or educational use. However, thumbnails belong to their respective creators. Always take permission before reuse.</p>
+        
+        <h4><span class="badge bg-primary me-2">i</span> Compatibility</h4>
+        <p>Works on Android, tablets, laptops, and desktops. Some iOS devices may restrict downloads due to system limitations.</p>
+        
+        <h4><span class="badge bg-danger me-2">i</span> Copyright Notice</h4>
+        <p>All thumbnails are owned by the original content creators. Reusing them without permission may cause copyright issues, especially on YouTube.</p>
+        
+        <h4><span class="badge bg-secondary me-2">i</span> SEO Friendly?</h4>
+        <p>Reusing thumbnails is not SEO-friendly because they are already indexed by Google. You can edit them using tools like Photoshop to make them unique.</p>
+        
+        <hr>
+        
+        <h4><span class="badge bg-success me-2">i</span> Quick Start</h4>
+        <ul>
+            <li>Copy YouTube video URL</li>
+            <li>Paste in input box</li>
+            <li>Select quality (HD, Medium, Small)</li>
+            <li>Click Download</li>
+        </ul>
+        
+        <h4><span class="badge bg-light text-dark me-2">i</span> FAQs</h4>
+        <div class="faq-question">Why is Full HD not available?</div>
+        <div class="faq-answer">Some videos don't provide high-resolution thumbnails.</div>
+        
+        <div class="faq-question">Can I reuse thumbnails?</div>
+        <div class="faq-answer">Only with permission. Personal use is generally okay.</div>
+        
+        <div class="faq-question">Does it work on mobile?</div>
+        <div class="faq-answer">Yes, but iOS may require manual saving.</div>
+    </div>
+</main>
+
+<!-- Image Preview Modal -->
+<div class="modal fade" id="imagePreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewModalLabel">Thumbnail Preview</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImagePreview" src="" alt="preview" class="modal-image" style="max-width:100%; border-radius: 20px;">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-success" id="modalDownloadBtn">
+                    <i class="fas fa-download me-2"></i>Download
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<%- include('../partials/footer') %>
+
+<!-- Scripts -->
+<%- include('../partials/scripts') %>
+
+</body>
+</html>
